@@ -1,77 +1,72 @@
-require("dotenv").config();
-require("./models/db");
 const express = require("express");
-const cors = require("cors");
 const multer = require("multer");
 
-const { PORT } = process.env;
-const app = express();
-const UPLOADS_FOLDER = "./uploads";
-
-app.use(cors());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
+// File upload folder
+const UPLOADS_FOLDER = "./uploads/";
+// preapre the final multer upload object
 const upload = multer({
   dest: UPLOADS_FOLDER,
   limits: {
-    fileSize: 1000000, // 1MB in byte
+    fileSize: 1000000, // 1MB
   },
   fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/jpg" ||
-      file.mimetype === "image/jpeg"
-    ) {
-      cb(null, true);
+    if (file.fieldname === "avatar") {
+      if (
+        file.mimetype === "image/png" ||
+        file.mimetype === "image/jpg" ||
+        file.mimetype === "image/jpeg"
+      ) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only .jpg, .png or .jpeg format allowed!"));
+      }
+    } else if (file.fieldname === "doc") {
+      if (file.mimetype === "application/pdf") {
+        cb(null, true);
+      } else {
+        cb(new Error("Only .pdf format allowed!"));
+      }
     } else {
-      cb(new Error("only jpg,jpeg,png allowed"));
+      cb(new Error("There was an unknown error!"));
     }
   },
 });
 
-app.get("/", (req, res) => {
-  res.sendFile(`${__dirname}/views/index.html`);
-});
+// express app initialization
+const app = express();
 
-app.post("/", upload.single("avatar", 2), (req, res) => {
-  res.send("Success");
-});
+// application route
+app.post(
+  "/",
+  upload.fields([
+    {
+      name: "avatar",
+      maxCount: 2,
+    },
+    {
+      name: "doc",
+      maxCount: 1,
+    },
+  ]),
+  (req, res) => {
+    res.send("success");
+  }
+);
 
-// app.post("/", upload.array("avatar", 2), (req, res) => {
-//   res.send("Success");
-// });
-
-// app.post(
-//   "/",
-//   upload.fields([
-//     { name: "avatar", maxCount: 1 },
-//     { name: "gallery", maxCount: 2 },
-//   ]),
-//   (req, res) => {
-//     res.send("Success");
-//   }
-// );
-
-app.get((req, res, next) => {
-  res.status(404).json({
-    message: "Route Not Found",
-  });
-  next();
-});
-
-app.use((error, req, res, next) => {
-  if (error) {
-    if (error instanceof multer.MulterError) {
-      res.status(500).send("Upload error");
+// default error handler
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err) {
+    if (err instanceof multer.MulterError) {
+      res.status(500).send("There was an upload error!");
     } else {
-      next(error); // Pass other errors to the next error handler
+      res.status(500).send(err.message);
     }
   } else {
     res.send("success");
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+app.listen(3000, () => {
+  console.log("app listening at port 3000");
 });
